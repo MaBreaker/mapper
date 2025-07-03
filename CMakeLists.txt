@@ -198,7 +198,7 @@ else()
 endif()
 
 
-##JU: manual definitions for Windows PROJ libraries
+##JU: Manual definitions for Windows PROJ libraries
 #add_library(PROJ SHARED IMPORTED) # or STATIC instead of SHARED
 #set_target_properties(PROJ PROPERTIES
 #  IMPORTED_IMPLIB "${PROJECT_SOURCE_DIR}/../libgdal/lib/proj9.lib"
