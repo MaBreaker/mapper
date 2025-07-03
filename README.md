@@ -1,5 +1,7 @@
 # OpenOrienteering Mapper
 
+*GDAL patched version for importing rotated point objects like slope lines, caves, gates, poles etc. in DXF.
+
 ![Mapper Screenshot](https://www.openorienteering.org/mapper-manual/pages/images/main_window.png)
 
 OpenOrienteering Mapper is an orienteering mapmaking program and provides

@@ -280,6 +280,14 @@ SymbolRuleSet SymbolRuleSet::loadCrt(QTextStream& stream, const Map& replacement
 	{
 		QString replacement_key;
 		stream >> replacement_key;
+
+		//JU: Remove leading zero(s) and keep single zero for OCAD compatibility. However OCAD has only 2 segments 1.2 not 1.2.1
+		// e.g. 001.000.002 -> 1.0.2
+		replacement_key.remove(QRegExp(QLatin1String("\\b0+\\B")));
+
+		//JU: Remove all trailing .0
+		//replacement_key.remove(QRegExp("(\\.0)+$"));
+
 		if (stream.status() == QTextStream::ReadPastEnd)
 		{
 			stream.resetStatus();

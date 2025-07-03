@@ -1,0 +1,55 @@
+--- a/ogr/ogrsf_frmts/dxf/ogrdxflayer.cpp	2020-10-20 12:50:31 +0000
++++ b/ogr/ogrsf_frmts/dxf/ogrdxflayer.cpp	2025-04-06 09:55:49 +0000
+@@ -919,6 +919,8 @@
+     double dfX = 0.0;
+     double dfY = 0.0;
+     double dfZ = 0.0;
++    //JU: append rotation parameter
++    double dfAngle = 0.0;
+     bool bHaveZ = false;
+ 
+     while( (nCode = poDS->ReadValue(szLineBuf,sizeof(szLineBuf))) > 0 )
+@@ -938,6 +940,11 @@
+             bHaveZ = true;
+             break;
+ 
++          //JU: append rotation parameter
++          case 50:
++            dfAngle = CPLAtof(szLineBuf);
++            break;
++
+           default:
+             TranslateGenericProperty( poFeature, nCode, szLineBuf );
+             break;
+@@ -961,8 +968,30 @@
+ 
+     poFeature->SetGeometryDirectly( poGeom );
+ 
++    //JU: hack point symbol rotation
+     // Set style pen color
+-    PrepareLineStyle( poFeature );
++    //PrepareLineStyle( poFeature );
++
++    /* -------------------------------------------------------------------- */
++    /*      Format the style string.                                        */
++    /* -------------------------------------------------------------------- */
++
++    CPLString osStyle;
++    char szBuffer[64];
++
++    // Font name
++    osStyle.Printf("SYMBOL(c:");
++    osStyle += poFeature->GetColor(poDS);
++
++    if (dfAngle != 0.0)
++    {
++        CPLsnprintf(szBuffer, sizeof(szBuffer), "%.3g", dfAngle);
++        osStyle += CPLString().Printf(",a:%s", szBuffer);
++    }
++
++    osStyle += ")";
++
++    poFeature->SetStyleString(osStyle);
+ 
+     return poFeature;
+ }

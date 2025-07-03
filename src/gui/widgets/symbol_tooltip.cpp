@@ -26,6 +26,8 @@
 #include <QApplication>
 #include <QCursor>
 #include <QDesktopWidget>
+//JU: Update deprecated
+#include <QScreen>
 #include <QHideEvent>
 #include <QLabel>
 #include <QLatin1Char>
@@ -140,7 +142,10 @@ void SymbolToolTip::paintEvent(QPaintEvent* event)
 void SymbolToolTip::adjustPosition(bool mobile_mode)
 {
 	auto size = this->size();
-	auto desktop = QApplication::desktop()->screenGeometry(QCursor::pos());
+    //JU: Update deprecated
+	//auto desktop = QApplication::desktop()->screenGeometry(QCursor::pos());
+	QScreen* pScreen = QGuiApplication::screenAt(QCursor::pos());
+	auto desktop = pScreen->availableGeometry();
 	
 	const int margin = 3;
 	bool has_room_to_left  = (icon_rect.left()   - size.width()  - margin >= desktop.left());

@@ -1660,7 +1660,8 @@ quint32 OcdFileExport::exportLineSymbolCommon(const LineSymbol* line_symbol, Ocd
 		exportLineSymbolDoubleLine(line_symbol, 0, ocd_line_common);
 	}
 	
-	ocd_line_common.min_sym = line_symbol->getShowAtLeastOneSymbol() ? 0 : -1;
+	//JU: Fix OCAD dash behaviour when mid symbol is disabled
+	ocd_line_common.min_sym = line_symbol->getMidSymbol() && line_symbol->getShowAtLeastOneSymbol() ? 0 : -1;
 	ocd_line_common.num_prim_sym = decltype(ocd_line_common.num_prim_sym)(line_symbol->getMidSymbolsPerSpot());
 	ocd_line_common.prim_sym_dist = convertSize(line_symbol->getMidSymbolDistance());
 	

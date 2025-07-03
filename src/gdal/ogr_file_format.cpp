@@ -727,7 +727,8 @@ OgrFileImport::OgrFileImport(const QString& path, Map* map, MapView* view, UnitT
 	default_point_symbol->setName(tr("Point"));
 	default_point_symbol->setNumberComponent(0, 1);
 	default_point_symbol->setInnerColor(default_pen_color);
-	default_point_symbol->setInnerRadius(500); // (um)
+    //JU: Default size for OGR point objects
+	default_point_symbol->setInnerRadius(200); // (um)
 	map->addSymbol(default_point_symbol, 0);
 	
 	default_line_symbol = new LineSymbol();
@@ -1081,7 +1082,8 @@ void OgrFileImport::importFeature(MapPart* map_part, OGRFeatureDefnH feature_def
 	}
 	
 	auto objects = importGeometry(feature, geometry);
-	auto const tags = importFields(feature_definition, feature);
+    //JU: Possibility to add more tags later
+	auto tags = importFields(feature_definition, feature);
 	
 	if (driverName() == "LIBKML")
 	{
@@ -1096,6 +1098,12 @@ void OgrFileImport::importFeature(MapPart* map_part, OGRFeatureDefnH feature_def
 	
 	for (auto* object : objects)
 	{
+        //JU: Keep existing tags
+		if(object->tags().size() > 0) {
+			for (auto tag : object->tags()) {
+				tags.insert(tag);
+			}
+		}
 		object->setTags(tags);
 		map_part->addObject(object);
 	}
@@ -1173,6 +1181,34 @@ Object* OgrFileImport::importPointGeometry(OGRFeatureH feature, OGRGeometryH geo
 	{
 		auto object = new PointObject(symbol);
 		object->setPosition(toMapCoord(OGR_G_GetX(geometry, 0), OGR_G_GetY(geometry, 0)));
+
+		//JU: GDAL/OGR does not support DXF POINT entity 50 rotation values at the moment,
+		//    still might do at some day in the future the same way OCAD does.
+		//
+		//    By default DXF POINT objects are handled as PEN which does not have angle value "a:"
+		//
+		//    Customized GDAL/OGR by switching PEN to SYMBOL and built custom GDAL library based on that.
+
+		const auto& description = symbol->getDescription();
+		bool ok;
+		double angle = description.toDouble(&ok);
+		if (ok)
+		{
+			object->setRotation(qDegreesToRadians(angle));
+			object->setTag(QLatin1String("Rotation"), QString::number(angle));
+		}
+/*
+        //JU: 1st hack by using DXF POINT entity 30 Z axel value to get symbol rotation value imported here
+		else
+		{
+			angle = OGR_G_GetZ(geometry, 0);
+			if (angle != 0)
+			{
+				object->setRotation(qDegreesToRadians(angle));
+				object->setTag(QLatin1String("Rotation (hack)"), QString::number(angle));
+			}
+		}
+*/
 		return object;
 	}
 	
@@ -1635,6 +1671,15 @@ PointSymbol* OgrFileImport::getSymbolForOgrSymbol(OGRStyleToolH tool, const QByt
 	
 	auto ret = point_symbol.get();
 	map->addSymbol(point_symbol.release(), map->getNumSymbols());
+
+    //JU: Append symbol rotation
+	if(OGR_ST_GetType(tool) == OGRSTCSymbol)
+	{
+		auto angle = OGR_ST_GetParamDbl(tool, OGRSTSymbolAngle, &is_null);
+		if (!is_null)
+			ret->setDescription(QString::number(angle, 'f', 2));
+	}
+
 	return ret;
 }
 

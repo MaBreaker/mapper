@@ -19,7 +19,10 @@
 
 project(Clipper)
 
-cmake_minimum_required(VERSION 2.8.3)
+#JU: Ahanged cmake version and added CMP0135
+cmake_minimum_required(VERSION 3.5)
+cmake_policy(SET CMP0135 NEW)
+option(DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 
 # Configuration options
 

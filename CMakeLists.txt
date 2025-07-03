@@ -197,6 +197,18 @@ else()
 	find_package(Polyclipping 6.1.3 MODULE REQUIRED)
 endif()
 
+
+##JU: manual definitions for Windows PROJ libraries
+#add_library(PROJ SHARED IMPORTED) # or STATIC instead of SHARED
+#set_target_properties(PROJ PROPERTIES
+#  IMPORTED_IMPLIB "${PROJECT_SOURCE_DIR}/../libgdal/lib/proj9.lib"
+#  IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/../libgdal/bin/proj_9_3.dll"
+#  INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/../libgdal/include/proj9"
+#)
+#set(PROJ_DATA_DIR "${PROJECT_SOURCE_DIR}/../libgdal/bin/proj9/share")
+#set(PROJ_LIBRARIES PROJ)
+#set(PROJ_VERSION 9.3)
+
 # We must not require a minimum version of PROJ via find_package
 # because PROJ config requires the major version to match exactly.
 find_package(PROJ CONFIG)
@@ -224,7 +236,23 @@ elseif(PROJ_VERSION VERSION_LESS 6.2.1)
 endif()
 
 if(Mapper_USE_GDAL)
-	find_package(GDAL 2 REQUIRED)
+    #JU: manual definitions for Windows GDAL libraries
+    add_library(GDAL SHARED IMPORTED) # or STATIC instead of SHARED
+    set_target_properties(GDAL PROPERTIES
+        #IMPORTED_IMPLIB "${PROJECT_SOURCE_DIR}/../mingw-w64-gdal/build/gdal_i.lib"
+        #IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/../mingw-w64-gdal/build/libgdal.dll"
+        IMPORTED_IMPLIB "${PROJECT_SOURCE_DIR}/../mingw-w64-gdal/build/libgdal.dll.a"
+        IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/../mingw-w64-gdal/build/libgdal-36.dll"
+        INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/../mingw-w64-gdal/gdal-3.10.2/gcore"
+    )
+
+    set(GDAL_DIR "${PROJECT_SOURCE_DIR}/../mingw-w64-gdal/build/gdal-config")
+    #set(GDAL_DATA_DIR "${PROJECT_SOURCE_DIR}/../libgdal/bin/gdal-data")
+    set(GDAL_DATA_DIR "${PROJECT_SOURCE_DIR}/../mingw-w64-gdal/build/data")
+    set(GDAL_LIBRARY GDAL)
+    set(GDAL_VERSION "3.10.2")
+
+    #find_package(GDAL CONFIG REQUIRED)
 endif()
 
 find_package(Qt5Core 5.5 REQUIRED)
@@ -264,7 +292,13 @@ if(NOT CMAKE_CXX_CLANG_TIDY AND Mapper_DEVELOPMENT_BUILD AND SH_EXECUTABLE)
 	set(min_version 8)
 	find_package(ClangTidy ${min_version})
 	if(ClangTidy_FOUND)
-		set(CMAKE_CXX_CLANG_TIDY "${SH_EXECUTABLE};-e;${PROJECT_SOURCE_DIR}/code-check-wrapper.sh;${ClangTidy_EXECUTABLE}")
+		#JU: Use BAT in Windows
+		if(WIN32)
+			set(CMAKE_CXX_CLANG_TIDY "${SH_EXECUTABLE};-e;${PROJECT_SOURCE_DIR}/code-check-wrapper.sh;${ClangTidy_EXECUTABLE}")
+			#set(CMAKE_CXX_CLANG_TIDY "${PROJECT_SOURCE_DIR}/code-check-wrapper.bat;${ClangTidy_EXECUTABLE}")
+		else()
+			set(CMAKE_CXX_CLANG_TIDY "${SH_EXECUTABLE};-e;${PROJECT_SOURCE_DIR}/code-check-wrapper.sh;${ClangTidy_EXECUTABLE}")
+		endif()
 	else()
 		message(AUTHOR_WARNING "Install clang-tidy >= ${min_version} for code checks during build")
 	endif()
@@ -274,7 +308,13 @@ if(NOT CMAKE_CXX_INCLUDE_WHAT_YOU_USE AND Mapper_DEVELOPMENT_BUILD AND SH_EXECUT
 	set(min_version 0.12)
 	find_package(IWYU ${min_version})
 	if(IWYU_FOUND)
-		set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${SH_EXECUTABLE};-e;${PROJECT_SOURCE_DIR}/code-check-wrapper.sh;${IWYU_EXECUTABLE}")
+		#JU: Use BAT in Winodows
+		if(WIN32)
+			set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${SH_EXECUTABLE};-e;${PROJECT_SOURCE_DIR}/code-check-wrapper.sh;${IWYU_EXECUTABLE}")
+			#set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${PROJECT_SOURCE_DIR}/code-check-wrapper.bat;${IWYU_EXECUTABLE}")
+		else()
+			set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${SH_EXECUTABLE};-e;${PROJECT_SOURCE_DIR}/code-check-wrapper.sh;${IWYU_EXECUTABLE}")
+		endif()
 	else()
 		message(AUTHOR_WARNING "Install include-what-you-use >= ${min_version} for code checks during build")
 	endif()

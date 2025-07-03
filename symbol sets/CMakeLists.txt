@@ -26,7 +26,8 @@ endif()
 set(Mapper_SYMBOL_SETS
   "10000/ISOM 2017-2_10000.omap"
   "15000/ISOM 2017-2_15000.omap"
-  
+  "15000/MML ISOM2017-2v10.omap"
+
   "4000/ISSprOM 2019_4000.omap"
   
   5000/ISMTBOM_5000.omap

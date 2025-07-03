@@ -10,3 +10,6 @@ help/*.qhc
 3rd-party/*/download
 !3rd-party/*/download/README.txt
 packaging/android/Mapper
+3rd-party/gdal/gdal-3.1.4
+3rd-party/gdal/gdal-3.7.2
+3rd-party/gdal/gdal-3.10.2

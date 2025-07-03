@@ -25,6 +25,8 @@
 #include <QAction>
 #include <QApplication>
 #include <QDesktopWidget>
+//JU: Update deprecated
+#include <QScreen>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QStyleOptionMenuItem>
@@ -163,7 +165,10 @@ void PieMenu::popup(const QPoint& pos)
 	updateCachedState(); // We need the current total_radius.
 	
 	QPoint cursor_pos = QCursor::pos();
-	QRect screen_rect = qApp->desktop()->availableGeometry(cursor_pos);
+    //JU: Update deprecated
+	//QRect screen_rect = qApp->desktop()->availableGeometry(cursor_pos);
+	QScreen* pScreen = qApp->screenAt(cursor_pos);
+	QRect screen_rect = pScreen->availableGeometry();
 	
 	if (cursor_pos.x() > screen_rect.right() - total_radius)
 		cursor_pos.setX(screen_rect.right() - total_radius);

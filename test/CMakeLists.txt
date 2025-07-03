@@ -234,8 +234,8 @@ if(Mapper_AUTORUN_TESTS)
 	add_dependencies(AUTORUN_TESTS ${Mapper_AUTORUN_TESTS})
 endif()
 
-
-set(IOF_3_XSD_FILE "" CACHE FILEPATH "Path of the IOF Data Standard 3 XSD file")
+#JU: IOF xsd path
+set(IOF_3_XSD_FILE "${PROJECT_SOURCE_DIR}/IOF.xsd" CACHE FILEPATH "Path of the IOF Data Standard 3 XSD file")
 if(IOF_3_XSD_FILE)
 	find_program(XMLLINT NAMES xmllint)
 	add_test(NAME validate_iof_course

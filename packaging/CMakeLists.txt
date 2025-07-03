@@ -53,7 +53,8 @@ function(deploy_qt_translations basename)
 	endif()
 	
 	install(CODE 
-	  "execute_process(COMMAND \"${CMAKE_COMMAND}\" --build \"${CMAKE_CURRENT_BINARY_DIR}\" --target \"${basename}-translations\")"
+		#JU: Fix packaging "execute_process(COMMAND \"${CMAKE_COMMAND}\" --build \"${CMAKE_CURRENT_BINARY_DIR}\" --target \"${basename}-translations\")"
+		"execute_process(COMMAND \"${CMAKE_COMMAND}\" --build \"${CMAKE_BINARY_DIR}\" --target \"packaging/${basename}-translations\")"
 	)
 	
 	set(generated_translations )
