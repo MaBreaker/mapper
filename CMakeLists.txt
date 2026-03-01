@@ -228,22 +228,7 @@ elseif(PROJ_VERSION VERSION_LESS 6.2.1)
 endif()
 
 if(Mapper_USE_GDAL)
-	#JU: Manual definitions to configure against patched GDAL library
-	#find_package(GDAL MODULE REQUIRED)
-	set(GDAL_VERSION "3.12.2")
-	add_library(GDAL SHARED IMPORTED) # or STATIC instead of SHARED
-	set(GDAL_DIR_SRC "${PROJECT_SOURCE_DIR}/../gdal-${GDAL_VERSION}")
-	set(GDAL_DIR_BUILD "${PROJECT_SOURCE_DIR}/../gdal-${GDAL_VERSION}/build/release")
-	set_target_properties(GDAL PROPERTIES
-	  IMPORTED_IMPLIB "${GDAL_DIR_BUILD}/libgdal.dll.a"
-	  IMPORTED_LOCATION "${GDAL_DIR_BUILD}/libgdal-38.dll"
-	  #INTERFACE_LINK_LIBRARIES "proj;geos_c;sqlite3 ..."
-	  INTERFACE_INCLUDE_DIRECTORIES "${GDAL_DIR_SRC}/gcore;${GDAL_DIR_SRC}/port;${GDAL_DIR_SRC}/ogr;${GDAL_DIR_BUILD}/port;${GDAL_DIR_BUILD}/gcore"
-	)
-	get_target_property(GDAL_LIBRARIES GDAL IMPORTED_LOCATION)
-	get_target_property(GDAL_INCLUDE_DIRS GDAL INTERFACE_INCLUDE_DIRECTORIES)
-	set(GDAL_DIR "${GDAL_DIR_BUILD}/apps/gdal-config")
-	set(GDAL_DATA_DIR "${GDAL_DIR_BUILD}/data")
+	find_package(GDAL MODULE REQUIRED)
 endif()
 
 find_package(Qt5Core 5.5 REQUIRED)

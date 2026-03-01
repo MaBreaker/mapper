@@ -66,13 +66,13 @@ Download GDAL 3.12.2 source
 [DGAL source](https://gdal.org/en/stable/download.html#source-code)
 
 Patch GDAL source code to support rotated DXF point objects (pacth file from Mapper source is needed)  
-`patch -p1 -i <path to mapper source>/3rd-party/gdal/gdal-3.12.2-ogrdxflayer.patch`
+`patch -p1 -i "<path to mapper source>/3rd-party/gdal/gdal-3.12.2-ogrdxflayer.patch"`
 
 Create target folder  
 `mkdir gdal_release && cd $_`
 
 Configure customized GDAL  
-`cmake <path to gdal source> -DCMAKE_BUILD_TYPE=Release`
+`cmake "<path to gdal source>" -DCMAKE_BUILD_TYPE=Release`
 
 Compile customized GDAL  
 `cmake --build .`
@@ -88,8 +88,8 @@ Download Mapper source
 Create target folder  
 `mkdir mapper_release && cd $_`
 
-Configure Mapper and ensure it is pointing to Customized GDAL library and not standard one  
-`cmake <path to mapper source> -DCMAKE_BUILD_TYPE=Release`
+Configure Mapper and ensure it is pointing to Customized GDAL library and NOT standard version  
+`cmake "<path to mapper source>" -DCMAKE_BUILD_TYPE=Release -DGDAL_LIBRARY="<path to gdal_release>/libgdal-38.dll" -DGDAL_INCLUDE_DIR="<path to gdal_release>/gcore;<path to gdal_release>/port;<path to gdal source>/gcore;<path to gdal source>/port;<path to gdal source>/ogr" -DGDAL_DATA_DIR="<path to gdal_release>/data"`
 
 Compile Mapper  
 `cmake --build .`
