@@ -20,7 +20,7 @@
 project(Clipper)
 
 #JU: Changed cmake version and added CMP0135
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
 cmake_policy(SET CMP0135 NEW)
 option(DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 

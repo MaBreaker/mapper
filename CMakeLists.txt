@@ -25,6 +25,7 @@ endif()
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
 endif()
+#JU: Set policy CMP0177
 if(POLICY CMP0177)
     cmake_policy(SET CMP0177 NEW)
 endif()
@@ -200,18 +201,6 @@ else()
 	find_package(Polyclipping 6.1.3 MODULE REQUIRED)
 endif()
 
-
-##JU: Manual definitions for Windows PROJ libraries
-#add_library(PROJ SHARED IMPORTED) # or STATIC instead of SHARED
-#set_target_properties(PROJ PROPERTIES
-#  IMPORTED_IMPLIB "${PROJECT_SOURCE_DIR}/../libgdal/lib/proj9.lib"
-#  IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/../libgdal/bin/proj_9_3.dll"
-#  INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/../libgdal/include/proj9"
-#)
-#set(PROJ_DATA_DIR "${PROJECT_SOURCE_DIR}/../libgdal/bin/proj9/share")
-#set(PROJ_LIBRARIES PROJ)
-#set(PROJ_VERSION 9.3)
-
 # We must not require a minimum version of PROJ via find_package
 # because PROJ config requires the major version to match exactly.
 find_package(PROJ CONFIG)
@@ -239,7 +228,22 @@ elseif(PROJ_VERSION VERSION_LESS 6.2.1)
 endif()
 
 if(Mapper_USE_GDAL)
-	find_package(GDAL MODULE REQUIRED)
+	#JU: Manual definitions to configure against patched GDAL library
+	#find_package(GDAL MODULE REQUIRED)
+	set(GDAL_VERSION "3.12.2")
+	add_library(GDAL SHARED IMPORTED) # or STATIC instead of SHARED
+	set(GDAL_DIR_SRC "${PROJECT_SOURCE_DIR}/../gdal-${GDAL_VERSION}")
+	set(GDAL_DIR_BUILD "${PROJECT_SOURCE_DIR}/../gdal-${GDAL_VERSION}/build/release")
+	set_target_properties(GDAL PROPERTIES
+	  IMPORTED_IMPLIB "${GDAL_DIR_BUILD}/libgdal.dll.a"
+	  IMPORTED_LOCATION "${GDAL_DIR_BUILD}/libgdal-38.dll"
+	  #INTERFACE_LINK_LIBRARIES "proj;geos_c;sqlite3 ..."
+	  INTERFACE_INCLUDE_DIRECTORIES "${GDAL_DIR_SRC}/gcore;${GDAL_DIR_SRC}/port;${GDAL_DIR_SRC}/ogr;${GDAL_DIR_BUILD}/port;${GDAL_DIR_BUILD}/gcore"
+	)
+	get_target_property(GDAL_LIBRARIES GDAL IMPORTED_LOCATION)
+	get_target_property(GDAL_INCLUDE_DIRS GDAL INTERFACE_INCLUDE_DIRECTORIES)
+	set(GDAL_DIR "${GDAL_DIR_BUILD}/apps/gdal-config")
+	set(GDAL_DATA_DIR "${GDAL_DIR_BUILD}/data")
 endif()
 
 find_package(Qt5Core 5.5 REQUIRED)
@@ -279,13 +283,7 @@ if(NOT CMAKE_CXX_CLANG_TIDY AND Mapper_DEVELOPMENT_BUILD AND SH_EXECUTABLE)
 	set(min_version 8)
 	find_package(ClangTidy ${min_version})
 	if(ClangTidy_FOUND)
-		#JU: Use BAT in Windows
-		if(WIN32)
 			set(CMAKE_CXX_CLANG_TIDY "${SH_EXECUTABLE};-e;${PROJECT_SOURCE_DIR}/code-check-wrapper.sh;${ClangTidy_EXECUTABLE}")
-			#set(CMAKE_CXX_CLANG_TIDY "${PROJECT_SOURCE_DIR}/code-check-wrapper.bat;${ClangTidy_EXECUTABLE}")
-		else()
-			set(CMAKE_CXX_CLANG_TIDY "${SH_EXECUTABLE};-e;${PROJECT_SOURCE_DIR}/code-check-wrapper.sh;${ClangTidy_EXECUTABLE}")
-		endif()
 	else()
 		message(AUTHOR_WARNING "Install clang-tidy >= ${min_version} for code checks during build")
 	endif()
@@ -295,13 +293,7 @@ if(NOT CMAKE_CXX_INCLUDE_WHAT_YOU_USE AND Mapper_DEVELOPMENT_BUILD AND SH_EXECUT
 	set(min_version 0.12)
 	find_package(IWYU ${min_version})
 	if(IWYU_FOUND)
-		#JU: Use BAT in Winodows
-		if(WIN32)
 			set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${SH_EXECUTABLE};-e;${PROJECT_SOURCE_DIR}/code-check-wrapper.sh;${IWYU_EXECUTABLE}")
-			#set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${PROJECT_SOURCE_DIR}/code-check-wrapper.bat;${IWYU_EXECUTABLE}")
-		else()
-			set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${SH_EXECUTABLE};-e;${PROJECT_SOURCE_DIR}/code-check-wrapper.sh;${IWYU_EXECUTABLE}")
-		endif()
 	else()
 		message(AUTHOR_WARNING "Install include-what-you-use >= ${min_version} for code checks during build")
 	endif()

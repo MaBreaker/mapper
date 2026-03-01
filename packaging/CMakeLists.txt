@@ -306,7 +306,8 @@ if(Mapper_PACKAGE_GDAL)
 	  DESTINATION "${MAPPER_DATA_DESTINATION}/gdal")
 	foreach(item IN LISTS GDAL_LIBRARIES)
 		if(EXISTS "${item}")
-			get_filename_component(GDAL_LIBRARY_DIR "{item}" PATH)
+			#JU: Fix item parameter
+			get_filename_component(GDAL_LIBRARY_DIR "${item}" PATH)
 			list(APPEND MAPPER_LIB_HINTS "${GDAL_LIBRARY_DIR}")
 		endif()
 	endforeach()
@@ -386,8 +387,8 @@ if(Mapper_PACKAGE_ASSISTANT)
 	if(CMAKE_FIND_ROOT_PATH)
 		set(assistant_find_options ONLY_CMAKE_FIND_ROOT_PATH)
 	endif()
-	#JU: Try to tind Qt5 assistant instead of Qt6
 	find_program(Qt5Help_ASSISTANT_EXECUTABLE
+	  #JU: Try to find Qt5 assistant first instead of Qt6 which is default since version 5.15.18
 	  NAMES assistant-qt5 Assistant-qt5 assistant-qt5.exe assistant Assistant assistant.exe
 #	  HINTS bin
 	  ${assistant_find_options}
