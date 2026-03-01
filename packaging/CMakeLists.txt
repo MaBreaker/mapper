@@ -388,7 +388,6 @@ if(Mapper_PACKAGE_ASSISTANT)
 #	  HINTS bin
 	  ${assistant_find_options}
 	)
-	message(STATUS "${Qt5Help_ASSISTANT_EXECUTABLE}")
 	if(NOT Qt5Help_ASSISTANT_EXECUTABLE)
 		message(FATAL_ERROR "Qt5Help_ASSISTANT_EXECUTABLE: not found, "
 		  "but required by option Mapper_PACKAGE_ASSISTANT="
