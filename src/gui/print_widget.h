@@ -1,6 +1,6 @@
 /*
  *    Copyright 2012, 2013 Thomas Schöps
- *    Copyright 2012-2021 Kai Pastor
+ *    Copyright 2012-2021, 2025 Kai Pastor
  *
  *    This file is part of OpenOrienteering.
  *
@@ -209,7 +209,7 @@ protected slots:
 	
 	/** This slot reacts to changes of the "Simulate overprinting" option. */
 	void overprintingClicked(bool checked);
-
+	
 	/** This slot reacts to changes of the "Color mode" option. */
 	void colorModeChanged();
 	
@@ -263,7 +263,7 @@ protected:
 	void exportToImage();
 
 	/** Export a world file */
-	void exportWorldFile(const QString& path) const;
+	bool exportWorldFile(const QString& path) const;
 	
 	/** Exports to a PDF file. */
 	void exportToPdf();
@@ -303,6 +303,7 @@ private:
 	QCheckBox* show_grid_check;
 	QCheckBox* overprinting_check;
 	QCheckBox* world_file_check;
+	QCheckBox* transparent_background_check;
 	QCheckBox* different_scale_check;
 	QSpinBox* different_scale_edit;
 	QComboBox* color_mode_combo;
@@ -344,7 +345,6 @@ private:
 Q_DECLARE_OPERATORS_FOR_FLAGS(OpenOrienteering::PrintWidget::TaskFlags)
 
 
-#endif
+#endif // OPENORIENTEERING_PRINT_WIDGET_H
 
-
-#endif
+#endif // QT_PRINTSUPPORT_LIB

@@ -1,5 +1,6 @@
 /*
  *    Copyright 2016-2020 Kai Pastor
+ *    Copyright 2025 Matthias Kühlewein
  *
  *    This file is part of OpenOrienteering.
  *
@@ -26,8 +27,8 @@
 #include <functional>
 #include <iterator>
 #include <memory>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include <cpl_conv.h>
 #include <gdal.h>
@@ -463,7 +464,7 @@ namespace {
 		}
 		
 	public:
-		AverageCoords(OGRDataSourceH data_source, OGRDataSourceH srs)
+		AverageCoords(OGRDataSourceH data_source, OGRSpatialReferenceH srs)
 		{
 			auto num_layers = OGR_DS_GetLayerCount(data_source);
 			for (int i = 0; i < num_layers; ++i)
@@ -1902,7 +1903,7 @@ LatLon OgrFileImport::calcAverageLatLon(OGRDataSourceH data_source)
 
 
 // static
-QPointF OgrFileImport::calcAverageCoords(OGRDataSourceH data_source, OGRDataSourceH srs)
+QPointF OgrFileImport::calcAverageCoords(OGRDataSourceH data_source, OGRSpatialReferenceH srs)
 {
 	return QPointF{AverageCoords(data_source, srs)};
 }
@@ -1973,11 +1974,11 @@ bool OgrFileExport::exportImplementation()
 {
 	// Choose driver and setup format-specific features
 	QFileInfo info(path);
-	GDALDriverH po_driver = nullptr;
+	OGRSFDriverH po_driver = nullptr;
 	
 	if (id)
 	{
-		auto driver_data = GDALGetDriverByName(id);
+		auto driver_data = OGRGetDriverByName(id);
 		auto type = GDALGetMetadataItem(driver_data, GDAL_DCAP_VECTOR, nullptr);
 		auto cap_create = GDALGetMetadataItem(driver_data, GDAL_DCAP_CREATE, nullptr);
 		if (qstrcmp(type, "YES") == 0 && qstrcmp(cap_create, "YES") == 0)
@@ -2017,137 +2018,103 @@ bool OgrFileExport::exportImplementation()
 	
 	// Setup style table
 	populateStyleTable(symbols);
-
-	auto is_point_object = [](const Object* object) {
-		const auto* symbol = object->getSymbol();
-		return symbol && symbol->getContainedTypes() & Symbol::Point;
-	};
-
-	auto is_text_object = [](const Object* object) {
-		const auto* symbol = object->getSymbol();
-		return symbol && symbol->getContainedTypes() & Symbol::Text;
-	};
-
-	auto is_line_object = [](const Object* object) {
-		const auto* symbol = object->getSymbol();
-		return symbol && (symbol->getType() == Symbol::Line
-		                  || (symbol->getType() == Symbol::Combined && !(symbol->getContainedTypes() & Symbol::Area)));
-	};
-
-	auto is_area_object = [](const Object* object) {
-		const auto* symbol = object->getSymbol();
-		return symbol && symbol->getContainedTypes() & Symbol::Area;
-	};
+	
+	OGRLayerH layer = nullptr;
+	
+	enum class ExportMode
+	{
+		SingleLayer,
+		LayerPerSymbol,
+		LayerPerType
+	} export_mode = ExportMode::LayerPerType;
 
 	if (quirks & SingleLayer)
 	{
-		auto layer = createLayer("Layer", wkbUnknown);
+		export_mode = ExportMode::SingleLayer;
+		layer = createLayer("Layer", wkbUnknown);
 		if (layer == nullptr)
 			throw FileFormatException(tr("Failed to create layer: %2").arg(QString::fromLatin1(CPLGetLastErrorMsg())));
-		
-		for (auto symbol : symbols)
-		{
-			auto match_symbol = [symbol](auto object) { return object->getSymbol() == symbol; };
-			switch (symbol->getType())
-			{
-			case Symbol::Point:
-				addPointsToLayer(layer, match_symbol);
-				break;
-			case Symbol::Text:
-				addTextToLayer(layer, match_symbol);
-				break;
-			case Symbol::Line:
-				addLinesToLayer(layer, match_symbol);
-				break;
-			case Symbol::Combined:
-				if (!(symbol->getContainedTypes() & Symbol::Area))
-				{
-					addLinesToLayer(layer, match_symbol);
-					break;
-				}
-				Q_FALLTHROUGH();
-			case Symbol::Area:
-				addAreasToLayer(layer, match_symbol);
-				break;
-			case Symbol::NoSymbol:
-			case Symbol::AllSymbols:
-				Q_UNREACHABLE();
-			}
-		}
 	}
 	else if (option(QString::fromLatin1("Per Symbol Layers")).toBool())
 	{
-		// Add points, lines, areas in this order for driver compatibility (esp GPX)
-		for (auto symbol : symbols)
-		{
-			if (symbol->getType() == Symbol::Point)
-			{
-				auto layer = createLayer(QString::fromUtf8("%1_%2").arg(info.baseName(), symbol->getPlainTextName()).toUtf8(), wkbPoint);
-				if (layer != nullptr)
-					addPointsToLayer(layer, [&symbol](const Object* object) {
-						const auto* sym = object->getSymbol();
-						return sym == symbol;
-					});
-			}
-			else if (symbol->getType() == Symbol::Text)
-			{
-				auto layer = createLayer(QString::fromUtf8("%1_%2").arg(info.baseName(), symbol->getPlainTextName()).toUtf8(), wkbPoint);
-				if (layer != nullptr)
-					addTextToLayer(layer, [&symbol](const Object* object) {
-						const auto* sym = object->getSymbol();
-						return sym == symbol;
-					});
-			}
-		}
-
-		// Line symbols
-		for (auto symbol : symbols)
-		{
-			if (symbol->getType() == Symbol::Line
-			    || (symbol->getType() == Symbol::Combined && !(symbol->getContainedTypes() & Symbol::Area)))
-			{
-				auto layer = createLayer(QString::fromUtf8("%1_%2").arg(info.baseName(), symbol->getPlainTextName()).toUtf8(), wkbLineString);
-				if (layer != nullptr)
-					addLinesToLayer(layer, [&symbol](const Object* object) {
-						const auto* sym = object->getSymbol();
-						return sym == symbol;
-					});
-			}
-		}
-
-		// Area symbols
-		for (auto symbol : symbols)
-		{
-			if (symbol->getContainedTypes() & Symbol::Area)
-			{
-				auto layer = createLayer(QString::fromUtf8("%1_%2").arg(info.baseName(), symbol->getPlainTextName()).toUtf8(), wkbPolygon);
-				if (layer != nullptr)
-					addAreasToLayer(layer, [&symbol](const Object* object) {
-						const auto* sym = object->getSymbol();
-						return sym == symbol;
-					});
-			}
-		}
+		export_mode = ExportMode::LayerPerSymbol;
 	}
-	else
+	
+	// Add points, lines, areas in this order for driver compatibility (esp GPX)
+	// First type: points
+	if (export_mode == ExportMode::LayerPerType)
 	{
-		// Add points, lines, areas in this order for driver compatibility (esp GPX)
-		auto point_layer = createLayer(QString::fromLatin1("%1_points").arg(info.baseName()).toLatin1(), wkbPoint);
-		if (point_layer != nullptr)
-		{
-			addPointsToLayer(point_layer, is_point_object);
-			addTextToLayer(point_layer, is_text_object);
-		}
-
-		auto line_layer = createLayer(QString::fromLatin1("%1_lines").arg(info.baseName()).toLatin1(), wkbLineString);
-		if (line_layer != nullptr)
-			addLinesToLayer(line_layer, is_line_object);
-
-		auto area_layer = createLayer(QString::fromLatin1("%1_areas").arg(info.baseName()).toLatin1(), wkbPolygon);
-		if (area_layer != nullptr)
-			addAreasToLayer(area_layer, is_area_object);
+		layer = nullptr;
+		layer = createLayer(QString::fromLatin1("%1_points").arg(info.baseName()).toLatin1(), wkbPoint);
 	}
-
+	for (auto symbol : symbols)
+	{
+		if (symbol->getType() == Symbol::Point)
+		{
+			if (export_mode == ExportMode::LayerPerSymbol)
+			{
+				layer = nullptr;
+				layer = createLayer(QString::fromUtf8("%1_%2").arg(info.baseName(), symbol->getPlainTextName()).toUtf8(), wkbPoint);
+			}
+			if (layer != nullptr)
+				addPointsToLayer(layer, [symbol](auto object) { return object->getSymbol() == symbol; });
+		}
+	}
+	for (auto symbol : symbols)
+	{
+		if (symbol->getType() == Symbol::Text)
+		{
+			if (export_mode == ExportMode::LayerPerSymbol)
+			{
+				layer = nullptr;
+				layer = createLayer(QString::fromUtf8("%1_%2").arg(info.baseName(), symbol->getPlainTextName()).toUtf8(), wkbPoint);
+			}
+			if (layer != nullptr)
+				addTextToLayer(layer, [symbol](auto object) { return object->getSymbol() == symbol; });
+		}
+	}
+	
+	// Second type: lines
+	if (export_mode == ExportMode::LayerPerType)
+	{
+		layer = nullptr;
+		layer = createLayer(QString::fromLatin1("%1_lines").arg(info.baseName()).toLatin1(), wkbLineString);
+	}
+	for (auto symbol : symbols)
+	{
+		if (symbol->getType() == Symbol::Line
+		    || (symbol->getType() == Symbol::Combined && !(symbol->getContainedTypes() & Symbol::Area)))
+		{
+			if (export_mode == ExportMode::LayerPerSymbol)
+			{
+				layer = nullptr;
+				layer = createLayer(QString::fromUtf8("%1_%2").arg(info.baseName(), symbol->getPlainTextName()).toUtf8(), wkbLineString);
+			}
+			if (layer != nullptr)
+				addLinesToLayer(layer, [symbol](auto object) { return object->getSymbol() == symbol; });
+		}
+	}
+	
+	// Third type: areas
+	if (export_mode == ExportMode::LayerPerType)
+	{
+		layer = nullptr;
+		layer = createLayer(QString::fromLatin1("%1_areas").arg(info.baseName()).toLatin1(), wkbPolygon);
+	}
+	for (auto symbol : symbols)
+	{
+		if (symbol->getContainedTypes() & Symbol::Area)
+		{
+			if (export_mode == ExportMode::LayerPerSymbol)
+			{
+				layer = nullptr;
+				layer = createLayer(QString::fromUtf8("%1_%2").arg(info.baseName(), symbol->getPlainTextName()).toUtf8(), wkbPolygon);
+			}
+			if (layer != nullptr)
+				addAreasToLayer(layer, [symbol](auto object) { return object->getSymbol() == symbol; });
+		}
+	}
+	
 	return true;
 }
 
@@ -2233,6 +2200,7 @@ void OgrFileExport::setupQuirks(GDALDriverH po_driver)
 	    { "DGNv8",         GeorefOptional },
 	    { "DWG",           GeorefOptional },
 	    { "DXF",           OgrQuirks() | GeorefOptional | SingleLayer | UseLayerField },
+	    { "GeoJSON",       SingleLayer },
 	    { "Geomedia",      GeorefOptional },
 	    { "GPX",           NeedsWgs84 },
 	    { "INGRES",        GeorefOptional },

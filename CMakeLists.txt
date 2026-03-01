@@ -1,6 +1,6 @@
 #
 #    Copyright 2012, 2013, 2014 Thomas Schöps
-#    Copyright 2012-2025 Kai Pastor
+#    Copyright 2012-2026 Kai Pastor
 #    
 #    This file is part of OpenOrienteering.
 # 
@@ -17,7 +17,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with OpenOrienteering.  If not, see <http://www.gnu.org/licenses/>.
  
-cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
 if(POLICY CMP0115)
     cmake_policy(SET CMP0115 NEW)
@@ -41,8 +41,8 @@ option(CMAKE_FIND_PACKAGE_PREFER_CONFIG "Lookup package config files before usin
 
 # Project declaration
 
-project(Mapper VERSION 0.9.6 LANGUAGES CXX C)
-set(Mapper_COPYRIGHT "(C) 2025 The OpenOrienteering developers")
+project(Mapper VERSION 0.9.7 LANGUAGES CXX C)
+set(Mapper_COPYRIGHT "(C) 2026 The OpenOrienteering developers")
 
 math(EXPR Mapper_VERSION_CODE "${Mapper_VERSION_MAJOR} * 10000 + ${Mapper_VERSION_MINOR} * 100 + ${Mapper_VERSION_PATCH} * 2 + ${CMAKE_SIZEOF_VOID_P} / 4 - 1")
 
@@ -239,21 +239,7 @@ elseif(PROJ_VERSION VERSION_LESS 6.2.1)
 endif()
 
 if(Mapper_USE_GDAL)
-    #find_package(GDAL MODULE REQUIRED)
-    #JU: Manual definitions to build against patched GDAL library
-    set(GDAL_VERSION "3.12.2")
-    add_library(GDAL SHARED IMPORTED) # or STATIC instead of SHARED
-    set(GDAL_DIR_SRC "${PROJECT_SOURCE_DIR}/../gdal-${GDAL_VERSION}")
-    set(GDAL_DIR_BUILD "${PROJECT_SOURCE_DIR}/../gdal-${GDAL_VERSION}/build/release")
-    set_target_properties(GDAL PROPERTIES
-        IMPORTED_IMPLIB "${GDAL_DIR_BUILD}/libgdal.dll.a"
-        IMPORTED_LOCATION "${GDAL_DIR_BUILD}/libgdal-38.dll"
-        INTERFACE_INCLUDE_DIRECTORIES "${GDAL_DIR_SRC}/gcore;${GDAL_DIR_SRC}/port;${GDAL_DIR_SRC}/ogr;${GDAL_DIR_BUILD}/port;${GDAL_DIR_BUILD}/gcore"
-    )
-    get_target_property(GDAL_LIBRARY GDAL IMPORTED_LOCATION)
-    get_target_property(GDAL_INCLUDE_DIR GDAL INTERFACE_INCLUDE_DIRECTORIES)
-    set(GDAL_DIR "${GDAL_DIR_BUILD}/apps/gdal-config")
-    set(GDAL_DATA_DIR "${GDAL_DIR_BUILD}/data")
+	find_package(GDAL MODULE REQUIRED)
 endif()
 
 find_package(Qt5Core 5.5 REQUIRED)
