@@ -304,7 +304,7 @@ if(Mapper_PACKAGE_GDAL)
 	install(
 	  DIRECTORY "${GDAL_DATA_DIR}/"
 	  DESTINATION "${MAPPER_DATA_DESTINATION}/gdal")
-	get_filename_component(GDAL_LIBRARY_DIR "{GDAL_LIBRARY}" PATH)
+	get_filename_component(GDAL_LIBRARY_DIR "${GDAL_LIBRARY}" PATH)
 	list(APPEND MAPPER_LIB_HINTS "${GDAL_LIBRARY_DIR}")
 endif()
 
@@ -382,11 +382,13 @@ if(Mapper_PACKAGE_ASSISTANT)
 	if(CMAKE_FIND_ROOT_PATH)
 		set(assistant_find_options ONLY_CMAKE_FIND_ROOT_PATH)
 	endif()
+	#JU: Try to tind Qt5 assistant instead of Qt6
 	find_program(Qt5Help_ASSISTANT_EXECUTABLE
-	  NAMES assistant Assistant assistant.exe
+	  NAMES assistant-qt5 Assistant-qt5 assistant-qt5.exe assistant Assistant assistant.exe
 #	  HINTS bin
 	  ${assistant_find_options}
 	)
+	message(STATUS "${Qt5Help_ASSISTANT_EXECUTABLE}")
 	if(NOT Qt5Help_ASSISTANT_EXECUTABLE)
 		message(FATAL_ERROR "Qt5Help_ASSISTANT_EXECUTABLE: not found, "
 		  "but required by option Mapper_PACKAGE_ASSISTANT="

@@ -17,13 +17,16 @@
 #    You should have received a copy of the GNU General Public License
 #    along with OpenOrienteering.  If not, see <http://www.gnu.org/licenses/>.
  
-cmake_minimum_required(VERSION 3.7 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
 if(POLICY CMP0115)
     cmake_policy(SET CMP0115 NEW)
 endif()
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
+endif()
+if(POLICY CMP0177)
+    cmake_policy(SET CMP0177 NEW)
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -236,23 +239,21 @@ elseif(PROJ_VERSION VERSION_LESS 6.2.1)
 endif()
 
 if(Mapper_USE_GDAL)
-    #JU: manual definitions for Windows GDAL libraries
+    #find_package(GDAL MODULE REQUIRED)
+    #JU: Manual definitions to build against patched GDAL library
+    set(GDAL_VERSION "3.12.2")
     add_library(GDAL SHARED IMPORTED) # or STATIC instead of SHARED
+    set(GDAL_DIR_SRC "${PROJECT_SOURCE_DIR}/../gdal-${GDAL_VERSION}")
+    set(GDAL_DIR_BUILD "${PROJECT_SOURCE_DIR}/../gdal-${GDAL_VERSION}/build/release")
     set_target_properties(GDAL PROPERTIES
-        #IMPORTED_IMPLIB "${PROJECT_SOURCE_DIR}/../mingw-w64-gdal/build/gdal_i.lib"
-        #IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/../mingw-w64-gdal/build/libgdal.dll"
-        IMPORTED_IMPLIB "${PROJECT_SOURCE_DIR}/../mingw-w64-gdal/build/libgdal.dll.a"
-        IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/../mingw-w64-gdal/build/libgdal-36.dll"
-        INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/../mingw-w64-gdal/gdal-3.10.2/gcore"
+        IMPORTED_IMPLIB "${GDAL_DIR_BUILD}/libgdal.dll.a"
+        IMPORTED_LOCATION "${GDAL_DIR_BUILD}/libgdal-38.dll"
+        INTERFACE_INCLUDE_DIRECTORIES "${GDAL_DIR_SRC}/gcore;${GDAL_DIR_SRC}/port;${GDAL_DIR_SRC}/ogr;${GDAL_DIR_BUILD}/port;${GDAL_DIR_BUILD}/gcore"
     )
-
-    set(GDAL_DIR "${PROJECT_SOURCE_DIR}/../mingw-w64-gdal/build/gdal-config")
-    #set(GDAL_DATA_DIR "${PROJECT_SOURCE_DIR}/../libgdal/bin/gdal-data")
-    set(GDAL_DATA_DIR "${PROJECT_SOURCE_DIR}/../mingw-w64-gdal/build/data")
-    set(GDAL_LIBRARY GDAL)
-    set(GDAL_VERSION "3.10.2")
-
-    #find_package(GDAL CONFIG REQUIRED)
+    get_target_property(GDAL_LIBRARY GDAL IMPORTED_LOCATION)
+    get_target_property(GDAL_INCLUDE_DIR GDAL INTERFACE_INCLUDE_DIRECTORIES)
+    set(GDAL_DIR "${GDAL_DIR_BUILD}/apps/gdal-config")
+    set(GDAL_DATA_DIR "${GDAL_DIR_BUILD}/data")
 endif()
 
 find_package(Qt5Core 5.5 REQUIRED)
