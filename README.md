@@ -71,14 +71,11 @@ Patch GDAL source code to support rotated DXF point objects (pacth file from Map
 Create target folder  
 `mkdir gdal_release && cd $_`
 
-Configure customized GDAL  
+Configure Custom GDAL  
 `cmake "<path to gdal source>" -DCMAKE_BUILD_TYPE=Release`
 
-Compile customized GDAL  
+Compile Custom GDAL  
 `cmake --build .`
-
-Install customized GDAL  
-`cmake --build . --target install`
 
 ### MAPPER
 
@@ -88,8 +85,10 @@ Download Mapper source
 Create target folder  
 `mkdir mapper_release && cd $_`
 
-Configure Mapper and ensure it is pointing to Customized GDAL library and NOT standard version  
-`cmake "<path to mapper source>" -DCMAKE_BUILD_TYPE=Release -DGDAL_LIBRARY="<path to gdal_release>/libgdal-38.dll" -DGDAL_INCLUDE_DIR="<path to gdal_release>/gcore;<path to gdal_release>/port;<path to gdal source>/gcore;<path to gdal source>/port;<path to gdal source>/ogr" -DGDAL_DATA_DIR="<path to gdal_release>/data"`
+Configure Mapper and ensure it is pointing to Custom GDAL library and NOT standard version  
+`cmake "<path to mapper source>" -DCMAKE_BUILD_TYPE=Release`  
+In this specific case Custom GDAL is not installed into the system, therefore gdal source & build path parameters must be given to cmake configurator manually  
+`-DGDAL_LIBRARY="<path to gdal_release>/libgdal-38.dll" -DGDAL_INCLUDE_DIR="<path to gdal_release>/gcore;<path to gdal_release>/port;<path to gdal source>/gcore;<path to gdal source>/port;<path to gdal source>/ogr" -DGDAL_DATA_DIR="<path to gdal_release>/data"`
 
 Compile Mapper  
 `cmake --build .`
