@@ -2135,56 +2135,101 @@ PathPart::size_type PathObject::convertRangeToCurves(const PathPart& part, PathP
 	
 	Q_ASSERT(!coords[start_index].isCurveStart());
 	coords[start_index].setCurveStart(true);
-	
+
+	// JU: Variables for bazier handle length calculations
+	double angle;
+	double ratio;
+	double handle_distance;
+
 	// Special case: last coordinate
 	MapCoord direction;
+	MapCoordF tangent;
+	double baseline;
 	if (end_index != part.last_index)
 	{
+		// JU: Calculate corner angle
+		angle = atan2(coords[end_index + 1].y() - coords[end_index].y(), coords[end_index + 1].x() - coords[end_index].x()) -
+				atan2(coords[end_index - 1].y() - coords[end_index].y(), coords[end_index - 1].x() - coords[end_index].x());
+
 		// Use direction of next segment
 		direction = coords[end_index + 1] - coords[end_index];
 	}
 	else if (part.isClosed())
 	{
+		// JU: Calculate corner angle
+		angle = atan2(coords[part.first_index + 1].y() - coords[end_index].y(), coords[part.first_index + 1].x() - coords[end_index].x()) -
+				atan2(coords[end_index - 1].y() - coords[end_index].y(), coords[end_index - 1].x() - coords[end_index].x());
+
 		// Use average direction at close point
 		direction = coords[part.first_index + 1] - coords[end_index - 1];
 	}
 	else
 	{
+		// JU: Default
+		angle = M_PI;
+
 		// Use direction of last segment
 		direction = coords[end_index] - coords[end_index - 1];
 	}
-	
-	MapCoordF tangent = MapCoordF(direction);
+
+	// JU: Only consider angles between -PI and PI
+	if (angle < -M_PI) angle += M_PI*2; // angle is negative so it subtracts from PI*2
+	else if (angle > M_PI) angle -= M_PI*2;
+
+	// JU: Sharpness of the corner defines bazier handle length
+	ratio = qMin(qAbs(angle) / M_PI, 2.0);
+	handle_distance = ratio * BEZIER_HANDLE_DISTANCE;
+
+	tangent = MapCoordF(direction);
 	tangent.normalize();
-	
+
 	MapCoord end_handle = coords[end_index];
 	end_handle.setFlags(0);
-	auto baseline = (coords[end_index] - coords[end_index - 1]).length() * BEZIER_HANDLE_DISTANCE;
+	baseline = qMax((coords[end_index] - coords[end_index - 1]).length() * handle_distance, 0.1);
 	end_handle = end_handle - MapCoord(tangent * baseline);
 	
 	// Special case: first coordinate
 	if (start_index != part.first_index)
 	{
+		// JU: Calculate corner angle
+		angle = atan2(coords[start_index + 1].y() - coords[start_index].y(), coords[start_index + 1].x() - coords[start_index].x()) -
+				atan2(coords[start_index - 1].y() - coords[start_index].y(), coords[start_index - 1].x() - coords[start_index].x());
+
 		// Use direction of previous segment
 		direction = coords[start_index] - coords[start_index - 1];
 	}
 	else if (part.isClosed())
 	{
+		// JU: Calculate corner angle
+		angle = atan2(coords[start_index + 1].y() - coords[start_index].y(), coords[start_index + 1].x() - coords[start_index].x()) -
+				atan2(coords[part.last_index - 1].y() - coords[start_index].y(), coords[part.last_index - 1].x() - coords[start_index].x());
+
 		// Use average direction at close point
 		direction = coords[start_index + 1] - coords[part.last_index - 1];
 	}
 	else
 	{
+		// JU: Default
+		angle = M_PI;
+
 		// Use direction of first segment
 		direction = coords[start_index + 1] - coords[start_index];
 	}
-	
+
+	// JU: Only consider angles between -PI and PI
+	if (angle < -M_PI) angle += M_PI*2; // angle is negative so it subtracts from PI*2
+	else if (angle > M_PI) angle -= M_PI*2;
+
+	// JU: Sharpness of the corner defines bazier handle length
+	ratio = qMin(qAbs(angle) / M_PI, 2.0);
+	handle_distance = ratio * BEZIER_HANDLE_DISTANCE;
+
 	tangent = MapCoordF(direction);
 	tangent.normalize();
-	
+
 	MapCoord handle = coords[start_index];
 	handle.setFlags(0);
-	baseline = (coords[start_index + 1] - coords[start_index]).length() * BEZIER_HANDLE_DISTANCE;
+	baseline = qMax((coords[start_index + 1] - coords[start_index]).length() * handle_distance, 0.1);
 	handle = handle + MapCoord(tangent * baseline);
 	addCoordinate(start_index + 1, handle);
 	++end_index;
@@ -2192,14 +2237,27 @@ PathPart::size_type PathObject::convertRangeToCurves(const PathPart& part, PathP
 	// In-between coordinates
 	for (MapCoordVector::size_type c = start_index + 2; c < end_index; ++c)
 	{
+		// JU: Calculate corner angle
+		angle = atan2(coords[c + 1].y() - coords[c].y(), coords[c + 1].x() - coords[c].x()) -
+				atan2(coords[c - 2].y() - coords[c].y(), coords[c - 2].x() - coords[c].x());
+
+		// JU: Only consider angles between -PI and PI
+		if (angle < -M_PI) angle += M_PI*2; // angle is negative so it subtracts from PI*2
+		else if (angle > M_PI) angle -= M_PI*2;
+
+		// JU: Sharpness of the corner defines bazier handle length
+		ratio = qMin(qAbs(angle) / M_PI, 2.0);
+		handle_distance = ratio * BEZIER_HANDLE_DISTANCE;
+
 		direction = coords[c + 1] - coords[c - 2];
 		tangent = MapCoordF(direction);
 		tangent.normalize();
-		
+
 		// Add previous handle
 		handle = coords[c];
 		handle.setFlags(0);
-		baseline = (coords[c] - coords[c - 2]).length() * BEZIER_HANDLE_DISTANCE;
+		// JU: Minimum handle distance
+		baseline = qMax((coords[c] - coords[c - 2]).length() * handle_distance, 0.1);
 		handle = handle - MapCoord(tangent * baseline);
 		
 		addCoordinate(c, handle);
@@ -2213,7 +2271,8 @@ PathPart::size_type PathObject::convertRangeToCurves(const PathPart& part, PathP
 		// Add next handle
 		handle = coords[c];
 		handle.setFlags(0);
-		baseline = (coords[c + 1] - coords[c]).length() * BEZIER_HANDLE_DISTANCE;
+		// JU: Minimum handle distance
+		baseline = qMax((coords[c + 1] - coords[c]).length() * handle_distance, 0.1);
 		handle = handle + MapCoord(tangent * baseline);
 		
 		addCoordinate(c + 1, handle);
@@ -2281,7 +2340,11 @@ bool PathObject::simplify(PathObject** undo_duplicate, double threshold)
 				while (index < part->last_index)
 				{
 					auto extract_end = part->nextCoordIndex(index);
-					if (costs[index] == undetermined_cost)
+					// JU: Protect dash points from deletion
+					if (coords[index].isDashPoint()) {
+						costs[index] = undetermined_cost;
+					}
+					else if (costs[index] == undetermined_cost)
 					{
 						temp.assignCoordinates(*this, extract_start, extract_end);
 						temp.deleteCoordinate(index - extract_start, true, Settings::DeleteBezierPoint_RetainExistingShape);
@@ -3049,10 +3112,22 @@ void PathObject::prepareDeleteBezierPoint(MapCoordVector::size_type pos, int del
 			qfactor = 1;
 		
 		calcBezierPointDeletionRetainingShapeOptimization(p0, p1, p2, q0, q1, q2, q3, pfactor, qfactor);
-		
-		double minimum_length = 0.01 * p0.distanceTo(q3);
-		pfactor = qMax(minimum_length / qMax(p0.distanceTo(p1), 0.01), pfactor);
-		qfactor = qMax(minimum_length / qMax(q3.distanceTo(q2), 0.01), qfactor);
+
+		// JU: Minimum and Maximum bazier handle distances
+		// Distances between ref points
+		const double distance = p0.distanceTo(q3);
+		const double distance_p = qMax(p0.distanceTo(p1), 0.01);
+		const double distance_q = qMax(q3.distanceTo(q2), 0.01);
+		// Calculate min and max handle distance between points to avoid too "noisy" bezier curves
+		const double minimum_length = qMax(0.01 * distance, 0.1);
+		const double minimum_length_p = minimum_length / distance_p;
+		const double minimum_length_q = minimum_length / distance_q;
+		// Maximum length a bit shorter that distance to the next point
+		const double maximum_length_p = (distance * BEZIER_HANDLE_DISTANCE*2) / distance_p;
+		const double maximum_length_q = (distance * BEZIER_HANDLE_DISTANCE*2) / distance_q;
+		// Check against minumum and maxmimum
+		pfactor = qMax(qMin(pfactor, maximum_length_p), minimum_length_p);
+		qfactor = qMax(qMin(qfactor, maximum_length_q), minimum_length_q);
 	}
 	else
 	{
