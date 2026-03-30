@@ -2340,7 +2340,7 @@ bool PathObject::simplify(PathObject** undo_duplicate, double threshold)
 				while (index < part->last_index)
 				{
 					auto extract_end = part->nextCoordIndex(index);
-					// JU: Protect dash points from deletion
+					// JU: Protect dash points from being deleted
 					if (coords[index].isDashPoint()) {
 						costs[index] = undetermined_cost;
 					}

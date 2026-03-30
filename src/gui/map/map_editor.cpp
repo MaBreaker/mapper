@@ -3125,9 +3125,12 @@ void MapEditorController::switchDashesClicked()
 }
 
 /// \todo Review use of container API
-float connectPaths_FindClosestEnd(const std::vector<Object*>& objects, const PathObject* a, int a_index, PathPartVector::size_type path_part_a, bool path_part_a_begin, PathObject** out_b, int* out_b_index, int* out_path_part_b, bool* out_path_part_b_begin)
+// JU: Double
+double connectPaths_FindClosestEnd(const std::vector<Object*>& objects, const PathObject* a, int a_index, PathPartVector::size_type path_part_a, bool path_part_a_begin, const double close_distance_sq, PathObject** out_b, int* out_b_index, int* out_path_part_b, bool* out_path_part_b_begin /* JU: Best angle */, double* out_best_angle)
 {
-	float best_dist_sq = std::numeric_limits<float>::max();
+	double best_dist_sq = std::numeric_limits<double>::max(); // JU: Double
+	*out_best_angle = M_PI*2;
+
 	for (int i = a_index; i < (int)objects.size(); ++i)
 	{
 		const auto* b = static_cast<const PathObject*>(objects[i]);
@@ -3148,15 +3151,34 @@ float connectPaths_FindClosestEnd(const std::vector<Object*>& objects, const Pat
 					
 					const MapCoord coord_a = a->getCoordinate(path_part_a_begin ? a->parts()[path_part_a].first_index : (a->parts()[path_part_a].last_index));
 					const MapCoord coord_b = b->getCoordinate(path_part_b_begin ? b->parts()[path_part_b].first_index : (b->parts()[path_part_b].last_index));
-					float distance_sq = coord_a.distanceSquaredTo(coord_b);
-					if (distance_sq < best_dist_sq)
+					double distance_sq = coord_a.distanceSquaredTo(coord_b);
+
+					// JU: Do not bother to spend time here while distance is too long anyways
+					if(distance_sq > close_distance_sq)
+						continue;
+
+					// JU: Check directions of the line ends and then prioritize more continious lines shapes
+					const MapCoord coord_a2 = a->getCoordinate(path_part_a_begin ? a->parts()[path_part_a].first_index + 1: (a->parts()[path_part_a].last_index - 1));
+					const MapCoord coord_b2 = b->getCoordinate(path_part_b_begin ? b->parts()[path_part_b].first_index + 1: (b->parts()[path_part_b].last_index - 1));
+
+					double angle = atan2(coord_a2.y() - coord_a.y(), coord_a2.x() - coord_a.x()) -
+					               atan2(coord_b.y() - coord_b2.y(), coord_b.x() - coord_b2.x());
+
+					if (angle < -M_PI) angle += M_PI*2; // angle is negative so it subtracts from PI*2
+					else if (angle > M_PI) angle -= M_PI*2;
+					angle = qAbs(angle);
+
+					// JU: Best angle, favor smooth continuous paths over sharp corners
+					if ((angle < *out_best_angle && (distance_sq - close_distance_sq/2) < best_dist_sq) ||
+						(distance_sq < best_dist_sq && (angle - 0.2) < *out_best_angle))
 					{
 						best_dist_sq = distance_sq;
 						*out_b = const_cast<PathObject*>(b);  // = /* non-const */ object[i]
 						*out_b_index = i;
 						*out_path_part_b = path_part_b;
 						*out_path_part_b_begin = path_part_b_begin;
-						if (distance_sq == 0)
+						*out_best_angle = angle; // JU: Best angle
+						if (distance_sq == 0 && angle < 0.1) // JU: Best angle
 							return 0;
 					}
 				}
@@ -3184,7 +3206,29 @@ void MapEditorController::connectPathsClicked()
 			undo_objects.push_back(nullptr);
 		}
 	}
-	
+
+	// JU: Processing time grows exponentially compared to selected objects
+	const int objects_size = (int)objects.size();
+	if (objects_size > 2000)
+	{
+		QMessageBox::warning(
+			window,
+			tr("Error"),
+			tr("Too large amount of objects (%1) selected. Processing time would be enormous. Please consider selecting narrower range of objects.").arg((int)objects.size()));
+		return;
+	}
+	else if (objects_size > 1000)
+	{
+		if (QMessageBox::question(
+				window,
+				tr("Warning"),
+				tr("Large amount of objects (%1) selected. Use of the connect paths tool may be very very slow. Do you really want to proceed?").arg((int)objects.size()),
+				QMessageBox::No | QMessageBox::Yes) == QMessageBox::No)
+		{
+			return;
+		}
+	}
+
 	AddObjectsUndoStep* add_step = nullptr;
 	MapPart* part = map->getCurrentPart();
 	
@@ -3202,8 +3246,9 @@ void MapEditorController::connectPathsClicked()
 		auto best_part_b = PathPartVector::size_type { 0 };
 		bool best_part_a_begin = false;
 		bool best_part_b_begin = false;
-		float best_dist_sq = std::numeric_limits<float>::max();
-		
+		double best_dist_sq = std::numeric_limits<double>::max(); // JU: Double
+		double best_angle = M_PI*2; // JU: Best angle
+
 		for (int i = 0; i < (int)objects.size(); ++i)
 		{
 			PathObject* a = reinterpret_cast<PathObject*>(objects[i]);
@@ -3211,7 +3256,8 @@ void MapEditorController::connectPathsClicked()
 			// Choose connection threshold as maximum of 0.35mm, 1.5 * largest line extent, and 6 pixels
 			// TODO: instead of 6 pixels, use a physical size as soon as screen dpi is in the settings
 			auto close_distance_sq = qMax(0.35, 1.5 * a->getSymbol()->calculateLargestLineExtent());
-			close_distance_sq = qMax(close_distance_sq, 0.001 * main_view->pixelToLength(6));
+			// JU: Low zoom levels have unwanted negative effects to the close distance value
+			//close_distance_sq = qMax(close_distance_sq, 0.001 * main_view->pixelToLength(6));
 			close_distance_sq = qPow(close_distance_sq, 2);
 			
 			auto num_parts = a->parts().size();
@@ -3224,15 +3270,21 @@ void MapEditorController::connectPathsClicked()
 					int b_index;
 					int path_part_b;
 					bool path_part_b_begin;
-					float distance_sq;
-					
+					double distance_sq;
+					double angle; // JU: Best angle
+
 					for (int begin = 0; begin < 2; ++begin)
 					{
 						bool path_part_a_begin = (begin == 0);
-						distance_sq = connectPaths_FindClosestEnd(objects, a, i, path_part_a, path_part_a_begin, &b, &b_index, &path_part_b, &path_part_b_begin);
-						if (distance_sq <= close_distance_sq && distance_sq < best_dist_sq)
+						distance_sq = connectPaths_FindClosestEnd(objects, a, i, path_part_a, path_part_a_begin, close_distance_sq, &b, &b_index, &path_part_b, &path_part_b_begin /* JU: Best angle */, &angle);
+						// JU: TODO Check directions of the end vectors and then prioritize closer ones
+						if (distance_sq <= close_distance_sq && (
+							// JU: Best angle, favor smooth continuous paths over sharp corners
+							   (angle < best_angle  && (distance_sq - close_distance_sq/2) < best_dist_sq)
+							|| (distance_sq < best_dist_sq && (angle - 0.2) < best_angle)))
 						{
 							best_dist_sq = distance_sq;
+							best_angle = angle;
 							best_object_a = a;
 							best_object_b = b;
 							best_object_a_index = i;
@@ -3248,7 +3300,7 @@ void MapEditorController::connectPathsClicked()
 		}
 		
 		// Abort if no possible connections found
-		if (best_dist_sq == std::numeric_limits<float>::max())
+		if (best_dist_sq == std::numeric_limits<double>::max())
 			break;
 		
 		// Create undo objects for a and b
@@ -3257,6 +3309,22 @@ void MapEditorController::connectPathsClicked()
 		if (!undo_objects[best_object_b_index])
 			undo_objects[best_object_b_index] = best_object_b->duplicate();
 		
+		// JU: Set dash to merge point
+		// TODO Check if it has dashed line symbol (line or combined)
+		//if(best_object_a > Symbol > Type == Line && Dashed == True ... )
+		if (best_part_a_begin) {
+			best_object_a->getCoordinateRef(0).setDashPoint(true);
+		}
+		else {
+			if (best_part_b_begin)
+				best_object_b->getCoordinateRef(0).setDashPoint(true);
+			else
+				best_object_b->getCoordinateRef(best_object_b->getCoordinateCount() - 1).setDashPoint(true);
+		}
+
+
+		//best_object_a->parts()[best_part_a].coords[1]..setDashPoint(true);
+
 		// Connect the best parts
 		if (best_part_a_begin && best_part_b_begin)
 		{
